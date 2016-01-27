@@ -1,6 +1,6 @@
 var COLS = ROWS = 20;
 var CUBE_SIZE = 40; //px
-var EMPTY = 0, SNAKE = 1, FRUIT = 2;
+var EMPTY = 0, LADY = 1, FRUIT = 2;
 var LEFT = 0, UP = 1, RIGHT = 2, DOWN = 3;
 var KEY_LEFT = 37, KEY_UP = 38, KEY_RIGHT = 39, KEY_DOWN = 40;
 
@@ -10,21 +10,28 @@ var canvas, ctx, keystate, frames, score = 0;
 var game = {
     _on: false,
 
-    isOn: function(){
+    isOn: function () {
         return this._on;
     },
 
-    on: function(state){
-        this._on=state;
-    }
+    on: function (state) {
+        this._on = state;
+    },
+
 }
 
 var grid = {
     width: null,
     height: null,
     _grid: null,
+    _LADY_IMG: new Image(),
+    _BEATEN_IMG: new Image(),
+    _FRUIT_IMG: new Image(),
 
     init: function (defaultVal, cols, rows) {
+        this._BEATEN_IMG.src = "img/beaten.gif";
+        this._FRUIT_IMG.src = "img/fruit.gif";
+        this._LADY_IMG.src = "img/lady.png";
         this.width = cols;
         this.height = rows;
         this._grid = [];
@@ -66,8 +73,8 @@ var snake = {
         this.last = this._queue[0];
     },
 
-    isHead: function(x,y){
-      return this._queue[0].x ===x && this._queue[0].y===y;
+    isHead: function (x, y) {
+        return this._queue[0].x === x && this._queue[0].y === y;
     }
 
 };
@@ -99,7 +106,7 @@ var messages = {
 
     drawMessage: function (msg) {
         this.init();
-        ctx.fillText(msg, 8,20);
+        ctx.fillText(msg, 8, 20);
     }
 
 }
@@ -111,7 +118,7 @@ function init() {
     var sp = {x: Math.floor(COLS / 2), y: ROWS - 1};
 
     snake.init(UP, sp.x, sp.y);
-    grid.set(SNAKE, sp.x, sp.y);
+    grid.set(LADY, sp.x, sp.y);
 
     setFruit();
     messages.init();
@@ -120,7 +127,7 @@ function init() {
 function loop() {
     update();
 
-    if(game.isOn()) {
+    if (game.isOn()) {
         draw.redraw();
         window.requestAnimationFrame(loop, canvas);
     }
@@ -137,11 +144,11 @@ function update() {
 
     if (keystate[KEY_LEFT] && snake.direction !== RIGHT)
         snake.direction = LEFT;
-    if (keystate[KEY_UP] && snake.direction !== DOWN)
+   else if (keystate[KEY_UP] && snake.direction !== DOWN)
         snake.direction = UP;
-    if (keystate[KEY_RIGHT] && snake.direction !== LEFT)
+   else if (keystate[KEY_RIGHT] && snake.direction !== LEFT)
         snake.direction = RIGHT;
-    if (keystate[KEY_DOWN] && snake.direction !== UP)
+   else if (keystate[KEY_DOWN] && snake.direction !== UP)
         snake.direction = DOWN;
 
     if (frames % 5 === 0) {
@@ -172,7 +179,7 @@ function update() {
             score++;
             var tail = {y: ny, x: nx};
             setFruit();
-        } else if (grid.get(nx, ny) === SNAKE) {
+        } else if (grid.get(nx, ny) === LADY) {
             return lost();
         } else {
             var tail = snake.remove();
@@ -181,13 +188,13 @@ function update() {
             tail.y = ny;
         }
 
-        grid.set(SNAKE, tail.x, tail.y);
+        grid.set(LADY, tail.x, tail.y);
         snake.insert(tail.x, tail.y);
     }
 }
 
 var draw = {
-    redrawElements:function() {
+    redrawElements: function () {
         var tw = canvas.width / grid.width;
         var th = canvas.height / grid.width;
 
@@ -196,19 +203,15 @@ var draw = {
                 ctx.fillStyle = "#FFFACD";
                 ctx.fillRect(x * tw, y * th, tw, th);
                 switch (grid.get(x, y)) {
-                    case SNAKE:
-                        var img = new Image();
-                        if(snake.isHead(x,y)) {
-                            img.src = "img/lady.png";
-                        }else{
-                            img.src = "img/beaten.gif"
+                    case LADY:
+                        if (snake.isHead(x, y)) {
+                            ctx.drawImage(grid._LADY_IMG, x * tw, y * th);
+                        } else {
+                            ctx.drawImage(grid._BEATEN_IMG, x * tw, y * th);
                         }
-                        ctx.drawImage(img, x * tw, y * th);
                         break;
                     case FRUIT:
-                        var img = new Image();
-                        img.src = "img/fruit.gif";
-                        ctx.drawImage(img, x * tw, y * th);
+                        ctx.drawImage(grid._FRUIT_IMG, x * tw, y * th);
                         break;
 
                 }
@@ -217,7 +220,7 @@ var draw = {
     },
 
 
-    redraw: function(){
+    redraw: function () {
         this.redrawElements();
         messages.drawScore();
     }
