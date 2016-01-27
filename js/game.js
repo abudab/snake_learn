@@ -1,27 +1,45 @@
-var COLS = ROWS = 26;
+var COLS = ROWS = 20;
 var EMPTY = 0, SNAKE = 1, FRUIT = 2;
 var LEFT = 0, UP = 1, RIGHT = 2, DOWN = 3;
 var KEY_LEFT = 37, KEY_UP = 38, KEY_RIGHT = 39, KEY_DOWN = 40;
+
+
+var canvas, ctx, keystate, frames, score = 0;
+
+var game = {
+    _on: false,
+
+    isOn: function(){
+        return this._on;
+    },
+
+    on: function(state){
+        this._on=state;
+    }
+}
 
 var grid = {
     width: null,
     height: null,
     _grid: null,
-    init: function (d, c, r) {
-        this.width = c;
-        this.height = r;
+
+    init: function (defaultVal, cols, rows) {
+        this.width = cols;
+        this.height = rows;
         this._grid = [];
 
-        for (var x = 0; x < c; x++) {
+        for (var x = 0; x < cols; x++) {
             this._grid.push([]);
-            for (var y = 0; y < r; y++) {
-                this._grid[x].push(d);
+            for (var y = 0; y < rows; y++) {
+                this._grid[x].push(defaultVal);
             }
         }
     },
+
     set: function (val, x, y) {
         this._grid[x][y] = val;
     },
+
     get: function (x, y) {
         return this._grid[x][y];
     }
@@ -31,14 +49,17 @@ var snake = {
     direction: null,
     last: null,
     _queue: null,
-    init: function (d, x, y) {
-        this.direction = d;
+
+    init: function (direction, x, y) {
+        this.direction = direction;
         this._queue = [];
         this.insert(x, y);
     },
+
     remove: function () {
         return this._queue.pop();
     },
+
     insert: function (x, y) {
         this._queue.unshift({x: x, y: y});
         this.last = this._queue[0];
@@ -46,7 +67,7 @@ var snake = {
 
 };
 
-function setFood() {
+function setFruit() {
     var empty = [];
     for (var x = 0; x < grid.width; x++) {
         for (var y = 0; y < grid.height; y++) {
@@ -59,43 +80,51 @@ function setFood() {
     grid.set(FRUIT, randpos.x, randpos.y);
 }
 
-var canvas, ctx, keystate, frames;
 
-function main() {
-    canvas = document.createElement("canvas");
-    canvas.width = COLS * 20;
-    canvas.height = ROWS * 20;
-    ctx = canvas.getContext("2d");
-    document.body.appendChild(canvas);
+var messages = {
+    init: function () {
+        ctx.font = "16px Arial";
+        ctx.fillStyle = "#0095DD";
+    },
 
-    document.addEventListener("keydown", function (e) {
-        keystate[e.keyCode] = true;
-    });
-    document.addEventListener("keyup", function (e) {
-        delete keystate[e.keyCode];
-    });
+    drawScore: function () {
+        this.init();
+        ctx.fillText("Score: " + score, 8, 20);
+    },
 
-    frames = 0;
-    keystate = {};
+    drawMessage: function (msg) {
+        this.init();
+        ctx.fillText(msg, 8,20);
+    }
 
-    init();
-    loop();
 }
 
 function init() {
+    game.on(true);
+
     grid.init(EMPTY, COLS, ROWS);
     var sp = {x: Math.floor(COLS / 2), y: ROWS - 1};
+
     snake.init(UP, sp.x, sp.y);
     grid.set(SNAKE, sp.x, sp.y);
 
-    setFood();
+    setFruit();
+    messages.init();
 }
 
 function loop() {
     update();
-    draw();
 
-    window.requestAnimationFrame(loop, canvas);
+    if(game.isOn()) {
+        draw.redraw();
+        window.requestAnimationFrame(loop, canvas);
+    }
+}
+
+function lost() {
+    draw.redrawElements();
+    messages.drawMessage("Game over! with a score: " + score);
+    game.on(false);
 }
 
 function update() {
@@ -131,14 +160,15 @@ function update() {
 
 
         if (0 > nx || nx > grid.width - 1 || ny < 0 || ny > grid.height - 1) {
-            return init();
+            return lost();
         }
 
         if (grid.get(nx, ny) === FRUIT) {
+            score++;
             var tail = {y: ny, x: nx};
-            setFood();
+            setFruit();
         } else if (grid.get(nx, ny) === SNAKE) {
-            return init();
+            return lost();
         } else {
             var tail = snake.remove();
             grid.set(EMPTY, tail.x, tail.y);
@@ -151,29 +181,63 @@ function update() {
     }
 }
 
-function draw() {
-    var tw = canvas.width / grid.width;
-    var th = canvas.height / grid.width;
+var draw = {
+    redrawElements:function() {
+        var tw = canvas.width / grid.width;
+        var th = canvas.height / grid.width;
 
-    for (var x = 0; x < grid.width; x++) {
-        for (var y = 0; y < grid.height; y++) {
-            switch (grid.get(x, y)) {
-                case EMPTY:
-                    ctx.fillStyle = "#fff";
+        for (var x = 0; x < grid.width; x++) {
+            for (var y = 0; y < grid.height; y++) {
+                switch (grid.get(x, y)) {
+                    case EMPTY:
+                        ctx.fillStyle = "#FFFACD";
 
-                    break;
-                case SNAKE:
-                    ctx.fillStyle = "#0ff";
+                        break;
+                    case SNAKE:
+                        ctx.fillStyle = "#ADFF2F";
 
-                    break;
-                case FRUIT:
-                    ctx.fillStyle = "#f00";
+                        break;
+                    case FRUIT:
+                        ctx.fillStyle = "#FF4500";
+                        break;
 
-
-                    break;
-
+                }
+                ctx.fillRect(x * tw, y * th, tw, th);
             }
-            ctx.fillRect(x * tw, y * th, tw, th);
         }
+    },
+
+
+    redraw: function(){
+        this.redrawElements();
+        messages.drawScore();
     }
+
+}
+
+function main() {
+    function setCanvasParams() {
+        canvas = document.getElementById("canvas");
+        canvas.width = COLS * 20;
+        canvas.height = ROWS * 20;
+        ctx = canvas.getContext("2d");
+    }
+
+    function addListeners() {
+        keystate = {};
+        document.addEventListener("keydown", function (e) {
+            keystate[e.keyCode] = true;
+        });
+        document.addEventListener("keyup", function (e) {
+            delete keystate[e.keyCode];
+        });
+    }
+
+    setCanvasParams();
+    addListeners();
+
+    frames = 0;
+
+    init();
+    loop();
 }
