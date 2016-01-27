@@ -1,4 +1,5 @@
 var COLS = ROWS = 20;
+var CUBE_SIZE = 40; //px
 var EMPTY = 0, SNAKE = 1, FRUIT = 2;
 var LEFT = 0, UP = 1, RIGHT = 2, DOWN = 3;
 var KEY_LEFT = 37, KEY_UP = 38, KEY_RIGHT = 39, KEY_DOWN = 40;
@@ -63,6 +64,10 @@ var snake = {
     insert: function (x, y) {
         this._queue.unshift({x: x, y: y});
         this.last = this._queue[0];
+    },
+
+    isHead: function(x,y){
+      return this._queue[0].x ===x && this._queue[0].y===y;
     }
 
 };
@@ -188,21 +193,25 @@ var draw = {
 
         for (var x = 0; x < grid.width; x++) {
             for (var y = 0; y < grid.height; y++) {
+                ctx.fillStyle = "#FFFACD";
+                ctx.fillRect(x * tw, y * th, tw, th);
                 switch (grid.get(x, y)) {
-                    case EMPTY:
-                        ctx.fillStyle = "#FFFACD";
-
-                        break;
                     case SNAKE:
-                        ctx.fillStyle = "#ADFF2F";
-
+                        var img = new Image();
+                        if(snake.isHead(x,y)) {
+                            img.src = "img/lady.png";
+                        }else{
+                            img.src = "img/beaten.gif"
+                        }
+                        ctx.drawImage(img, x * tw, y * th);
                         break;
                     case FRUIT:
-                        ctx.fillStyle = "#FF4500";
+                        var img = new Image();
+                        img.src = "img/fruit.gif";
+                        ctx.drawImage(img, x * tw, y * th);
                         break;
 
                 }
-                ctx.fillRect(x * tw, y * th, tw, th);
             }
         }
     },
@@ -218,8 +227,8 @@ var draw = {
 function main() {
     function setCanvasParams() {
         canvas = document.getElementById("canvas");
-        canvas.width = COLS * 20;
-        canvas.height = ROWS * 20;
+        canvas.width = COLS * CUBE_SIZE;
+        canvas.height = ROWS * CUBE_SIZE;
         ctx = canvas.getContext("2d");
     }
 
