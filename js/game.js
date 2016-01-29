@@ -2,13 +2,14 @@ var COLS = ROWS = 20;
 var CUBE_SIZE = 40; //px
 var EMPTY = 0, LADY = 1, FRUIT = 2;
 var LEFT = 0, UP = 1, RIGHT = 2, DOWN = 3;
-var KEY_LEFT = 37, KEY_UP = 38, KEY_RIGHT = 39, KEY_DOWN = 40;
+var KEY_LEFT = 37, KEY_UP = 38, KEY_RIGHT = 39, KEY_DOWN = 40, KEY_SPACE = 32;
 
 
-var canvas, ctx, keystate, frames, score = 0;
+var canvas, ctx, keystate, frames;
 
 var game = {
     _on: false,
+    _score : 0,
 
     isOn: function () {
         return this._on;
@@ -18,6 +19,20 @@ var game = {
         this._on = state;
     },
 
+    getScore: function(){
+        return this._score;
+    },
+
+    scoreIncrement: function(){
+      this._score++;
+    },
+
+    lost: function(){
+        draw.redrawElements();
+        messages.drawMessage("Game over! with a score: " + this.getScore() + ". Hit space to continue!");
+        this.on(false);
+        this._score=0;
+    }
 }
 
 var grid = {
@@ -50,6 +65,14 @@ var grid = {
 
     get: function (x, y) {
         return this._grid[x][y];
+    },
+
+    canMove: function (x, y) {
+        if (x >= 0 && y >= 0 && x < this.width && y < this.height) {
+            var state = this.get(x, y);
+            return state != LADY && state != FRUIT;
+        }
+        return false;
     }
 };
 
@@ -79,17 +102,33 @@ var snake = {
 
 };
 
-function setFruit() {
-    var empty = [];
-    for (var x = 0; x < grid.width; x++) {
-        for (var y = 0; y < grid.height; y++) {
-            if (grid.get(x, y) === EMPTY) {
-                empty.push({x: x, y: y});
+var fruit = {
+    _x: null, _y: null,
+
+    generate: function () {
+        var empty = [];
+        for (var x = 0; x < grid.width; x++) {
+            for (var y = 0; y < grid.height; y++) {
+                if (grid.get(x, y) === EMPTY) {
+                    empty.push({x: x, y: y});
+                }
             }
         }
+        var randpos = empty[Math.floor(Math.random() * empty.length)];
+        this._x = randpos.x, this._y = randpos.y;
+        grid.set(FRUIT, this._x, this._y);
+    },
+
+    runRandomly: function () {
+        var dx = Math.floor(Math.random() * 3) - 1;
+        var dy = Math.floor(Math.random() * 3) - 1;
+        if (grid.canMove(this._x + dx, this._y + dy)) {
+            grid.set(EMPTY, this._x, this._y);
+            this._x = this._x + dx;
+            this._y = this._y + dy;
+            grid.set(FRUIT, this._x, this._y);
+        }
     }
-    var randpos = empty[Math.floor(Math.random() * empty.length)];
-    grid.set(FRUIT, randpos.x, randpos.y);
 }
 
 
@@ -101,7 +140,7 @@ var messages = {
 
     drawScore: function () {
         this.init();
-        ctx.fillText("Score: " + score, 8, 20);
+        ctx.fillText("Score: " + game.getScore(), 8, 20);
     },
 
     drawMessage: function (msg) {
@@ -120,36 +159,39 @@ function init() {
     snake.init(UP, sp.x, sp.y);
     grid.set(LADY, sp.x, sp.y);
 
-    setFruit();
+    fruit.generate();
     messages.init();
 }
 
 function loop() {
-    update();
-
+    if (game.isOn()) {
+        update();
+    }
     if (game.isOn()) {
         draw.redraw();
-        window.requestAnimationFrame(loop, canvas);
+    } else if (keystate[KEY_SPACE]) {
+        init();
     }
+    window.requestAnimationFrame(loop, canvas);
 }
 
-function lost() {
-    draw.redrawElements();
-    messages.drawMessage("Game over! with a score: " + score);
-    game.on(false);
-}
 
 function update() {
     frames++;
 
-    if (keystate[KEY_LEFT] && snake.direction !== RIGHT)
+    if (keystate[KEY_LEFT] && snake.direction !== RIGHT) {
         snake.direction = LEFT;
-   else if (keystate[KEY_UP] && snake.direction !== DOWN)
+    } else if (keystate[KEY_UP] && snake.direction !== DOWN) {
         snake.direction = UP;
-   else if (keystate[KEY_RIGHT] && snake.direction !== LEFT)
+    } else if (keystate[KEY_RIGHT] && snake.direction !== LEFT) {
         snake.direction = RIGHT;
-   else if (keystate[KEY_DOWN] && snake.direction !== UP)
+    } else if (keystate[KEY_DOWN] && snake.direction !== UP) {
         snake.direction = DOWN;
+    }
+
+    if (frames % 10 === 0) {
+        fruit.runRandomly();
+    }
 
     if (frames % 5 === 0) {
         var nx = snake.last.x;
@@ -172,15 +214,15 @@ function update() {
 
 
         if (0 > nx || nx > grid.width - 1 || ny < 0 || ny > grid.height - 1) {
-            return lost();
+            return game.lost();
         }
 
         if (grid.get(nx, ny) === FRUIT) {
-            score++;
+            game.scoreIncrement();
             var tail = {y: ny, x: nx};
-            setFruit();
+            fruit.generate();
         } else if (grid.get(nx, ny) === LADY) {
-            return lost();
+            return game.lost();
         } else {
             var tail = snake.remove();
             grid.set(EMPTY, tail.x, tail.y);
